@@ -1,5 +1,5 @@
 HnS Library
 ========
-Experimental JavaScript Librar
+Experimental JavaScript Library
 -------------------------------
 `Creator: Andrew Gerst`
