@@ -4,9 +4,113 @@
  */
 
 ;(function(window, document, undefined){
+'use strict';
 
+Function.prototype.bind = function(scope){
+	var _function = this;
+	return function(){
+		return _function.apply(scope, arguments);
+	}
+};
 
+function bind(fnThis, fn){
+	var args = Array.prototype.slice.call(arguments, 2);
+	return function(){
+		if (!args.length) args = arguments;
+		return fn.apply(fnThis, args);
+	};
+}
 
+var hns = (function(){
+	var hns = function(selector){
+		return new hns.fn.init(selector);
+	};
+	hns.fn = hns.prototype = {
+		constructor: hns,
+		init: function(selector){
+			var root = function(){
+				if (!selector) {
+					return this;
+				}
+				if (typeof selector === "string") {
+					hns.fn.selection = document.getElementById(selector.substring(1));
+					return this;
+				} else if (typeof selector === "function") {
+					selector();
+					return this;
+				} else if (selector.nodeType) {
+					hns.fn.selection = selector;
+					return this;
+				} else {
+					return this;
+				}
+			};
+			if (!DomLoaded.ready) DomLoaded.load(root);
+			else root();
+		}.bind(hns)
+	};
+	hns.fn.init.prototype = hns.fn;
+	hns.extend = hns.fn.extend = function(){
+		var options = arguments[0] || {};
+		forEachIn(options, function(name, value){
+			if (!hns.prototype[name]) hns.prototype[name] = value;
+		});
+	};
+	var DomLoaded = {
+		ready: false,
+		queue: [],
+		loaded: function(){
+			if (this.ready) return;
+			this.ready = true;
+			for (var i = 0; i < this.queue.length; i++) this.queue[i]();
+		},
+		load: function(fireThis){
+			this.queue.push(fireThis);
+			if (document.addEventListener) 
+				document.addEventListener("DOMContentLoaded", DomLoaded.loaded.bind(this), null);
+			if (/KHTML|WebKit/i.test(navigator.userAgent)) {
+				var _timer = setInterval(function(){
+					if (/loaded|complete/.test(document.readyState)) {
+						clearInterval(_timer);
+						_timer = null;
+						DomLoaded.loaded();
+					}
+				}, 10);
+			}
+			/*@cc_on @*/
+			/*@if (@_win32)
+			var proto = "src='javascript:void(0)'";
+			if (location.protocol == "https:") proto = "src=//0";
+			document.write("<scr"+"ipt id=__ie_onload defer " + proto + "><\/scr"+"ipt>");
+			var script = document.getElementById("__ie_onload");
+			script.onreadystatechange = function() {
+			if (this.readyState == "complete") {
+			DomLoaded.loaded();
+			}
+			};
+			/*@end @*/
+			window.onload = DomLoaded.loaded.bind(this);
+		}
+	};
+	hns.extend({
+		selection: "",
+		html: function(text){
+			if (text === undefined) {
+				return this.selection.innerHTML;
+			} else {
+				this.selection.innerHTML = text;
+			}
+			return this;
+		},
+		ajax: function(type, url, data){
+			var xhr = requestObject();
+			xhr.open(type || "GET", url, true);
+		}
+	});
+	return hns;
+})();
+
+window.hns = hns;
 })(this, this.document);
 
 function registerEventHandler(node, event, handler){
@@ -57,42 +161,6 @@ function removeHandler(object){
 	unregisterEventHandler(object.node, object.type, object.handler);
 }
 
-var DomLoaded = {
-	onload: [],
-	loaded: function(){
-		if (arguments.callee.done) return;
-		arguments.callee.done = true;
-		for (var i = 0; i < DomLoaded.onload.length; i++) DomLoaded.onload[i]();
-	},
-	load: function(fireThis){
-		this.onload.push(fireThis);
-		if (document.addEventListener) 
-			document.addEventListener("DOMContentLoaded", DomLoaded.loaded, null);
-		if (/KHTML|WebKit/i.test(navigator.userAgent)) { 
-			var _timer = setInterval(function(){
-				if (/loaded|complete/.test(document.readyState)) {
-					clearInterval(_timer);
-					delete _timer;
-					DomLoaded.loaded();
-				}
-			}, 10);
-		}
-		/*@cc_on @*/
-		/*@if (@_win32)
-		var proto = "src='javascript:void(0)'";
-		if (location.protocol == "https:") proto = "src=//0";
-		document.write("<scr"+"ipt id=__ie_onload defer " + proto + "><\/scr"+"ipt>");
-		var script = document.getElementById("__ie_onload");
-		script.onreadystatechange = function() {
-		if (this.readyState == "complete") {
-		DomLoaded.loaded();
-		}
-		};
-		/*@end @*/
-		window.onload = DomLoaded.loaded;
-	}
-};
-
 function forEachIn(object, action){
 	for (var property in object) {
 		if (Object.prototype.hasOwnProperty.call(object, property))
@@ -120,17 +188,21 @@ function requestObject(){
 	if (window.XMLHttpRequest)
 		return new XMLHttpRequest();
 	else if (window.ActiveXObject)
-		return new ActiveXObject("Msxml2.XMLHTTP");
+		return new ActiveXObject(navigator.userAgent.indexOf("MSIE 5") > -1 ? "Microsoft.XMLHTTP" : "Msxml2.XMLHTTP");
 	else
 		throw new Error("Could not create HTTP request object.");
 }
 
 function simpleJSONRequest(url, success, failure){
-	var request = requestObject();
+	var request = requestObject(), data;
 	request.open("GET", url, true);
 	request.onreadystatechange = function(){
 		if (request.readyState == 4) {
-			var data = eval("(" + request.responseText + ")");
+			if (window.JSON && window.JSON.parse) {
+				data = window.JSON.parse(request.responseText);
+			} else {
+				data = eval("(" + request.responseText + ")");
+			}
 			success(data);
 		}
 	};

@@ -14,7 +14,11 @@ width:600px;
 <body>
 <div id="content"></div>
 <script>
-DomLoaded.load(function(){
+hns(function(){
+	
+});
+
+hns(function(){
 	registerEventHandler(document.body, 'click', function(event){
 		document.getElementById("content").innerHTML = "DOM Loaded";
 	});
