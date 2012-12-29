@@ -15,16 +15,12 @@ width:600px;
 <div id="content"></div>
 <script>
 hns(function(){
-	
-});
-
-hns(function(){
-	registerEventHandler(document.body, 'click', function(event){
-		document.getElementById("content").innerHTML = "DOM Loaded";
+	hns("#content").on('click', function(){
+		hns("#content").text("<b>DOM Loaded</b>");
 	});
 	document.body.appendChild(
-		dom("P", null, "A paragraph with a ", 
-			dom("A", {href: "http://en.wikipedia.org/wiki/Alchemy"}, "link"), " inside of it.")
+		dom("p", null, "A paragraph with a ", 
+			dom("a", {href: "http://en.wikipedia.org/wiki/Alchemy"}, "link"), " inside of it.")
 	);
 });
 </script>

@@ -6,21 +6,6 @@
 ;(function(window, document, undefined){
 'use strict';
 
-Function.prototype.bind = function(scope){
-	var _function = this;
-	return function(){
-		return _function.apply(scope, arguments);
-	}
-};
-
-function bind(fnThis, fn){
-	var args = Array.prototype.slice.call(arguments, 2);
-	return function(){
-		if (!args.length) args = arguments;
-		return fn.apply(fnThis, args);
-	};
-}
-
 var hns = (function(){
 	var hns = function(selector){
 		return new hns.fn.init(selector);
@@ -28,7 +13,7 @@ var hns = (function(){
 	hns.fn = hns.prototype = {
 		constructor: hns,
 		init: function(selector){
-			var root = function(){
+			var root = bind(hns, function(){
 				if (!selector) {
 					return this;
 				}
@@ -44,10 +29,10 @@ var hns = (function(){
 				} else {
 					return this;
 				}
-			};
+			});
 			if (!DomLoaded.ready) DomLoaded.load(root);
 			else root();
-		}.bind(hns)
+		}
 	};
 	hns.fn.init.prototype = hns.fn;
 	hns.extend = hns.fn.extend = function(){
@@ -94,24 +79,75 @@ var hns = (function(){
 	};
 	hns.extend({
 		selection: "",
-		html: function(text){
+		empty: function(){
+			var multiple = this.selection.length > 1;
+			if (multiple) {
+				for (var i in this.selection) {
+					this.selection[i].innerHTML = "";
+				}
+			} else {
+				this.selection.innerHTML = "";
+			}
+		},
+		text: function(text){
+			var textMethod = document.body.textContent ? "textContent" : "innerText";
+			var multiple = this.selection.length > 1;
+			var selection;
+			if (multiple) selection = this.selection[0];
+			else selection = this.selection;
 			if (text === undefined) {
+				if (document.body[textMethod]) {
+					return selection[textMethod];
+				} else {
+					return selection.innerHTML.replace(/\&lt;br\&gt;/gi,"\n").replace(/(&lt;([^&gt;]+)&gt;)/gi, "");
+				}
+			} else {
+				if (document.body[textMethod]) {
+					if (multiple) {
+						for (var i in this.selection) {
+							this.selection[i][textMethod] = text;
+						}
+					} else {
+						selection[textMethod] = text;
+					}
+				} else {
+					if (multiple) {
+						for (var i in this.selection) {
+							this.selection[i].innerHTML = text.replace(/\&lt;br\&gt;/gi,"\n").replace(/(&lt;([^&gt;]+)&gt;)/gi, "");
+						}
+					} else {
+						selection.innerHTML = text;
+					}
+				}
+				return this;
+			}
+			return this;
+		},
+		html: function(html){
+			if (html === undefined) {
 				return this.selection.innerHTML;
 			} else {
-				this.selection.innerHTML = text;
+				this.selection.innerHTML = html;
 			}
 			return this;
 		},
 		ajax: function(type, url, data){
 			var xhr = requestObject();
 			xhr.open(type || "GET", url, true);
+		},
+		on: function(method, handler){
+			addHandler(this.selection, method, handler);
 		}
 	});
-	return hns;
-})();
 
-window.hns = hns;
-})(this, this.document);
+
+function bind(fnThis, fn){
+	var args = Array.prototype.slice.call(arguments, 2);
+	return function(){
+		if (!args.length) args = arguments;
+		return fn.apply(fnThis, args);
+	};
+}
 
 function registerEventHandler(node, event, handler){
 	if (typeof node.addEventListener == "function")
@@ -161,28 +197,7 @@ function removeHandler(object){
 	unregisterEventHandler(object.node, object.type, object.handler);
 }
 
-function forEachIn(object, action){
-	for (var property in object) {
-		if (Object.prototype.hasOwnProperty.call(object, property))
-			action(property, object[property]);
-	}
-}
 
-function dom(name, attributes){
-	var node = document.createElement(name);
-	if (attributes) {
-		forEachIn(attributes, function(name, value) {
-			node.setAttribute(name, value);
-		});
-	}
-	for (var i = 2; i < arguments.length; i++) {
-		var child = arguments[i];
-		if (typeof child == "string")
-			child = document.createTextNode(child);
-		node.appendChild(child);
-	}
-	return node;
-}
 
 function requestObject(){
 	if (window.XMLHttpRequest)
@@ -221,4 +236,37 @@ function simpleHttpRequest(url, success, failure){
 		}
 	};
 	request.send(null);
+}
+
+	return hns;
+})();
+
+window.hns = hns;
+})(this, this.document);
+
+function forEachIn(object, action){
+	for (var property in object) {
+		if (Object.prototype.hasOwnProperty.call(object, property))
+			action(property, object[property]);
+	}
+}
+
+function textNode(text){
+	return document.createTextNode(text);
+}
+
+function dom(name, attributes){
+	var node = document.createElement(name);
+	if (attributes) {
+		forEachIn(attributes, function(name, value) {
+			node.setAttribute(name, value);
+		});
+	}
+	for (var i = 2; i < arguments.length; i++) {
+		var child = arguments[i];
+		if (typeof child == "string")
+			child = textNode(child);
+		node.appendChild(child);
+	}
+	return node;
 }
